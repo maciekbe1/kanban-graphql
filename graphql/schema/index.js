@@ -16,6 +16,8 @@ export const typeDefs = gql`
         password: String!
         f_name: String!
         l_name: String!
+        projects: [String!]!
+        tasks: [String!]!
     }
     type Task {
         _id: ID!
@@ -48,23 +50,28 @@ export const typeDefs = gql`
         dateCreated: String!
         admins: [String!]!
         users: [String!]!
+        tasks: [Task!]!
     }
-    type TasksResponse {
+    type TasksData {
         tasks: [Task!]!
         taskCount: Int!
     }
+    type ProjectsData {
+        projects: [Project!]!
+        totalProjects: Int!
+    }
     type Query {
-        getAllTasks(
-            projectId: String!
+        getAllUserTasks(
+            userId: String!
             first: Int
             skip: Int
             search: String
-        ): TasksResponse!
+        ): TasksData!
         getAllUsers: [User!]!
         getUser(_id: ID!): User!
         getTask(_id: ID!): Task!
         getProject(_id: ID!): Project!
-        getAllProjects: [Project!]!
+        getAllUserProjects(_id: ID!): ProjectsData!
     }
     type Mutation {
         createProject(

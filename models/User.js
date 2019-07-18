@@ -9,6 +9,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    projects: {
+        type: Array,
+        default: []
+    },
+    tasks: {
+        type: Array,
+        default: []
+    },
     password: {
         type: String,
         required: true

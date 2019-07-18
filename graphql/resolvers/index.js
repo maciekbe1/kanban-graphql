@@ -8,9 +8,9 @@ import jwt from "jsonwebtoken";
 export const resolvers = {
     Query: {
         getTask: (obj, args, context, info) => Task.findById(args._id),
-        getAllTasks: async (obj, { projectId, first, skip, search }) => {
+        getAllUserTasks: async (obj, { userId, first, skip, search }) => {
             const totalTasks = await Task.find({
-                projectId: projectId,
+                userId: userId,
                 name: { $regex: search, $options: "i" }
             }).countDocuments();
             const result = {
@@ -23,11 +23,24 @@ export const resolvers = {
             return await result;
         },
         getAllUsers: async () => await User.find(),
-        getUser: async (obj, args, context, info) =>
-            await User.findById(args._id),
+        getUser: async (_, { _id }) => await User.findById(_id),
         getTask: async (_, { _id }) => await Task.findById(_id),
-        getProject: async (_, { _id }) => awaitProject.findById(_id),
-        getAllProjects: async () => await Project.find()
+        getProject: async (_, { _id }) => await Project.findById(_id),
+        getAllUserProjects: async (_, { _id }) => {
+            const projectsArray = await User.findById(_id).distinct("projects");
+
+            if (!projectsArray.length) {
+                throw new Error("No project exist");
+            }
+            const projects = projectsArray.map(project => {
+                return Project.findById(project);
+            });
+
+            return await {
+                totalProjects: projectsArray.length,
+                projects: projects
+            };
+        }
     },
     Mutation: {
         createTask: async (
@@ -53,14 +66,25 @@ export const resolvers = {
                 currentStatus,
                 timeConsuming
             });
+            const checkUserInProject = await User.find({
+                _id: performerId,
+                users: performerId
+            });
+            // console.log(checkUserInProject);
+
+            if (checkUserInProject.length) {
+                throw new Error("User does not exist in this project!");
+            }
+            const user = await User.findById(performerId);
             await task.save();
+            await user.updateOne({ $push: { tasks: task._id } });
             return task;
         },
         createUser: async (_, { login, password, email, f_name, l_name }) => {
             try {
                 const existingUser = await User.findOne({ login });
                 if (existingUser) {
-                    throw new Error("User already exist");
+                    throw new Error("User already exist!");
                 }
                 const hashedPassword = await bcrypt.hash(password, 12);
                 const user = new User({
@@ -83,7 +107,9 @@ export const resolvers = {
                 admins: userId,
                 users: userId
             });
+            const user = User.findById(userId);
             await project.save();
+            await user.updateOne({ $push: { projects: project._id } });
             return project;
         },
         inviteMember: async (_, { projectId, ownerId, guestId }) => {
@@ -99,14 +125,17 @@ export const resolvers = {
                 throw new Error("You do not have access to add user");
             }
             if (checkUserExist.length) {
-                throw new Error("User is arleady exist");
+                throw new Error("User is arleady exist in this project");
             }
 
             await Project.updateOne({ $push: { users: guestId } });
 
             const objectId = await mongoose.Types.ObjectId(projectId);
             const project = await Project.findById(objectId);
-
+            const user = await User.findById(guestId);
+            // console.log(user.projects);
+            await user.updateOne({ $push: { projects: project._id } });
+            // console.log(update);
             return project;
         },
         signIn: async (_, { login, password }) => {

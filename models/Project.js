@@ -15,10 +15,16 @@ const projectSchema = new mongoose.Schema({
         default: Date.now()
     },
     admins: {
-        type: Array
+        type: Array,
+        default: []
     },
     users: {
-        type: Array
+        type: Array,
+        default: []
+    },
+    tasks: {
+        type: Array,
+        default: []
     }
 });
 export const Project = mongoose.model("Project", projectSchema);

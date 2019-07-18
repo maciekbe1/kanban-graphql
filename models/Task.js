@@ -7,6 +7,12 @@ const taskSchema = new mongoose.Schema({
         minlength: 3,
         maxlength: 50
     },
+    user: {
+        type: String
+    },
+    project: {
+        type: String
+    },
     description: {
         type: String,
         required: true
