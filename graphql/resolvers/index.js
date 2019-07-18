@@ -8,26 +8,39 @@ import jwt from "jsonwebtoken";
 export const resolvers = {
     Query: {
         getTask: (obj, args, context, info) => Task.findById(args._id),
-        getAllUserTasks: async (obj, { userId, first, skip, search }) => {
-            const totalTasks = await Task.find({
-                userId: userId,
-                name: { $regex: search, $options: "i" }
-            }).countDocuments();
-            const result = {
-                tasks: Task.find({ name: { $regex: search, $options: "i" } })
-                    .sort({ date: -1 })
-                    .skip(skip)
-                    .limit(first),
-                taskCount: totalTasks
+        getAllUserTasks: async (obj, { userId, search }) => {
+            const taskArray = await User.findById(userId).distinct("tasks");
+            if (!taskArray.length) {
+                throw new Error("No tasks exist");
+            }
+            if (search) {
+                const filtered = Task.find({
+                    _id: taskArray.map(task => task),
+                    name: { $regex: search, $options: "i" }
+                });
+
+                return await {
+                    tasks: filtered,
+                    taskCount: taskArray.length
+                };
+            }
+            const tasks = taskArray.map(task => {
+                return Task.findById(task);
+            });
+
+            return await {
+                tasks: tasks,
+                taskCount: taskArray.length
             };
-            return await result;
         },
         getAllUsers: async () => await User.find(),
         getUser: async (_, { _id }) => await User.findById(_id),
         getTask: async (_, { _id }) => await Task.findById(_id),
         getProject: async (_, { _id }) => await Project.findById(_id),
-        getAllUserProjects: async (_, { _id }) => {
-            const projectsArray = await User.findById(_id).distinct("projects");
+        getAllUserProjects: async (_, { userId }) => {
+            const projectsArray = await User.findById(userId).distinct(
+                "projects"
+            );
 
             if (!projectsArray.length) {
                 throw new Error("No project exist");
@@ -76,7 +89,9 @@ export const resolvers = {
                 throw new Error("User does not exist in this project!");
             }
             const user = await User.findById(performerId);
+            const project = await Project.findById(projectId);
             await task.save();
+            await project.updateOne({ $push: { tasks: task._id } });
             await user.updateOne({ $push: { tasks: task._id } });
             return task;
         },

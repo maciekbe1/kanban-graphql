@@ -71,7 +71,7 @@ export const typeDefs = gql`
         getUser(_id: ID!): User!
         getTask(_id: ID!): Task!
         getProject(_id: ID!): Project!
-        getAllUserProjects(_id: ID!): ProjectsData!
+        getAllUserProjects(userId: ID!): ProjectsData!
     }
     type Mutation {
         createProject(
