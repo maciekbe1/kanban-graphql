@@ -51,6 +51,7 @@ export const typeDefs = gql`
         admins: [String!]!
         users: [String!]!
         tasks: [Task!]!
+        status: [String!]!
     }
     type TasksData {
         tasks: [Task!]!
@@ -73,17 +74,23 @@ export const typeDefs = gql`
         getProject(_id: ID!): Project!
         getAllUserProjects(userId: ID!): ProjectsData!
     }
+    input StatusInput {
+        name: [String]!
+    }
     type Mutation {
         createProject(
             name: String!
             description: String!
             userId: String!
+            status: StatusInput
         ): Project!
+
         inviteMember(
             projectId: String!
             ownerId: String!
             guestId: String!
         ): Project!
+
         createTask(
             projectId: String!
             name: String!
@@ -94,6 +101,7 @@ export const typeDefs = gql`
             currentStatus: String!
             timeConsuming: String!
         ): Task!
+
         createUser(
             login: String!
             email: String!
@@ -101,8 +109,9 @@ export const typeDefs = gql`
             f_name: String!
             l_name: String!
         ): User!
+
         signIn(login: String!, password: String!): AuthData!
-        createStatus(name: String!): Status!
+        createStatus(projectId: String!): [String!]!
         createSprint(name: String!): Sprint!
     }
 `;

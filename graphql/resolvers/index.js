@@ -7,7 +7,6 @@ import jwt from "jsonwebtoken";
 
 export const resolvers = {
     Query: {
-        getTask: (obj, args, context, info) => Task.findById(args._id),
         getAllUserTasks: async (obj, { userId, search }) => {
             const taskArray = await User.findById(userId).distinct("tasks");
             if (!taskArray.length) {
@@ -115,12 +114,13 @@ export const resolvers = {
                 throw err;
             }
         },
-        createProject: async (_, { userId, name, description }) => {
+        createProject: async (_, { userId, name, description, status }) => {
             const project = new Project({
                 name: name,
                 description: description,
                 admins: userId,
-                users: userId
+                users: userId,
+                status: status.name
             });
             const user = User.findById(userId);
             await project.save();

@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     login: {
         type: String,
+        minlength: 3,
+        maxlength: 30,
         required: true
     },
     email: {
@@ -23,11 +25,13 @@ const userSchema = new mongoose.Schema({
     },
     f_name: {
         type: String,
-        required: true
+        // required: true
+        default: ""
     },
     l_name: {
         type: String,
-        required: true
+        default: ""
+        // required: true
     }
 });
 

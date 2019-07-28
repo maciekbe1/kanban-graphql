@@ -25,6 +25,10 @@ const projectSchema = new mongoose.Schema({
     tasks: {
         type: Array,
         default: []
+    },
+    status: {
+        type: Array,
+        default: []
     }
 });
 export const Project = mongoose.model("Project", projectSchema);
