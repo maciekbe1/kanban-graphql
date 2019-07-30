@@ -1,35 +1,50 @@
 import { Task } from "../../models/Task";
 import { User } from "../../models/User";
 import { Project } from "../../models/Project";
+import { Message } from "../../models/Message";
+
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { PubSub } from "apollo-server";
+const pubsub = new PubSub();
 
+const USER_MESSAGES = "USER_MESSAGES";
 export const resolvers = {
+    Subscription: {
+        messages: {
+            subscribe: async () => {
+                return await pubsub.asyncIterator([USER_MESSAGES]);
+            }
+        }
+    },
     Query: {
-        getAllUserTasks: async (obj, { userId, search }) => {
-            const taskArray = await User.findById(userId).distinct("tasks");
-            if (!taskArray.length) {
+        getAllPerformerTasks: async (obj, { userId, search }) => {
+            // const taskArray = await User.findById(userId).distinct("tasks");
+            const tasks = await Task.find({
+                performerId: userId
+            });
+            if (!tasks.length) {
                 throw new Error("No tasks exist");
             }
             if (search) {
                 const filtered = Task.find({
-                    _id: taskArray.map(task => task),
+                    performerId: userId,
                     name: { $regex: search, $options: "i" }
                 });
 
                 return await {
                     tasks: filtered,
-                    taskCount: taskArray.length
+                    taskCount: tasks.length
                 };
             }
-            const tasks = taskArray.map(task => {
-                return Task.findById(task);
-            });
+            // const tasks = taskArray.map(task => {
+            //     return Task.findById(task);
+            // });
 
             return await {
                 tasks: tasks,
-                taskCount: taskArray.length
+                taskCount: tasks.length
             };
         },
         getAllUsers: async () => await User.find(),
@@ -37,20 +52,53 @@ export const resolvers = {
         getTask: async (_, { _id }) => await Task.findById(_id),
         getProject: async (_, { _id }) => await Project.findById(_id),
         getAllUserProjects: async (_, { userId }) => {
-            const projectsArray = await User.findById(userId).distinct(
-                "projects"
-            );
+            // const projectsArray = await User.findById(userId).distinct(
+            //     "projects"
+            // );
 
-            if (!projectsArray.length) {
+            // if (!projectsArray.length) {
+            //     throw new Error("No project exist");
+            // }
+            // const projects = projectsArray.map(project => {
+            //     return Project.findById(project);
+            // });
+
+            const projects = await Project.find({ users: userId });
+            const tasks = await Task.find({
+                projectId: projects.map(project => {
+                    return project._id;
+                })
+            });
+            // const tasks = projects.map(project => {
+            //     return Task.find({ projectId: project._id });
+            // });
+            // const filter = projects.map(project => {
+            //     const result = project.users.map(user => {
+            //         return user === userId;
+            //     });
+            //     return result ? project : null;
+            // });
+            if (!projects.length) {
                 throw new Error("No project exist");
             }
-            const projects = projectsArray.map(project => {
-                return Project.findById(project);
-            });
 
+            return {
+                totalProjects: projects.length,
+                totalTasks: tasks.length,
+                projects: projects,
+                tasks: tasks
+            };
+        },
+        getAllUserMessages: async (_, { userId }) => {
+            const messages = await Message.findById(userId).distinct("userId");
+            const totalMesages = messages.length;
+            const unreadedMessages = messages.filter(message => {
+                return message.readed;
+            });
             return await {
-                totalProjects: projectsArray.length,
-                projects: projects
+                messages: messages,
+                totalMesages: totalMesages,
+                unreadedMessages: unreadedMessages
             };
         }
     },
@@ -68,8 +116,13 @@ export const resolvers = {
                 timeConsuming
             }
         ) => {
+            const tasks = await Task.find({
+                projectId: projectId
+            });
+            const taskIndex = tasks.length;
             const task = new Task({
                 projectId,
+                taskIndex,
                 name,
                 description,
                 performerId,
@@ -87,11 +140,20 @@ export const resolvers = {
             if (checkUserInProject.length) {
                 throw new Error("User does not exist in this project!");
             }
-            const user = await User.findById(performerId);
-            const project = await Project.findById(projectId);
+            // const user = await User.findById(performerId);
+            // const project = await Project.findById(projectId);
             await task.save();
-            await project.updateOne({ $push: { tasks: task._id } });
-            await user.updateOne({ $push: { tasks: task._id } });
+            // await project.updateOne({ $push: { tasks: task._id } });
+            // await user.updateOne({ $push: { tasks: task._id } });
+
+            //dodac oddelegowanie do taska
+            const message = new Message({
+                userId: performerId,
+                creator: creatorId,
+                readed: false,
+                message: `You have new an issue.`
+            });
+            await message.save();
             return task;
         },
         createUser: async (_, { login, password, email, f_name, l_name }) => {
@@ -122,9 +184,15 @@ export const resolvers = {
                 users: userId,
                 status: status.name
             });
-            const user = User.findById(userId);
+            // const user = User.findById(userId);
             await project.save();
-            await user.updateOne({ $push: { projects: project._id } });
+            // await user.updateOne({ $push: { projects: project._id } });
+            const message = new Message({
+                userId: userId,
+                readed: false,
+                message: `Project ${name} was successfuly created`
+            });
+            await message.save();
             return project;
         },
         inviteMember: async (_, { projectId, ownerId, guestId }) => {
@@ -139,18 +207,27 @@ export const resolvers = {
             if (!checkUserPermission.length) {
                 throw new Error("You do not have access to add user");
             }
+            //remove length
             if (checkUserExist.length) {
                 throw new Error("User is arleady exist in this project");
             }
 
-            await Project.updateOne({ $push: { users: guestId } });
+            await Project.find({ _id: projectId }).updateOne({
+                $push: { users: guestId }
+            });
 
             const objectId = await mongoose.Types.ObjectId(projectId);
             const project = await Project.findById(objectId);
-            const user = await User.findById(guestId);
+            // const user = await User.findById(guestId);
             // console.log(user.projects);
-            await user.updateOne({ $push: { projects: project._id } });
+            // await user.updateOne({ $push: { projects: project._id } });
             // console.log(update);
+            const message = new Message({
+                userId: userId,
+                readed: false,
+                message: `You have been invited to project`
+            });
+            await message.save();
             return project;
         },
         signIn: async (_, { login, password }) => {

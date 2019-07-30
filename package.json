@@ -20,6 +20,8 @@
         "express": "^4.17.1",
         "express-graphql": "^0.8.0",
         "graphql": "^14.4.2",
+        "graphql-subscriptions": "^1.1.0",
+        "graphql-tools": "^4.0.5",
         "jsonwebtoken": "^8.5.1",
         "lodash": "^4.17.14",
         "mongodb": "^3.2.7",

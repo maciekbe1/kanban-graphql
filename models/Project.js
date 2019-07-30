@@ -22,10 +22,6 @@ const projectSchema = new mongoose.Schema({
         type: Array,
         default: []
     },
-    tasks: {
-        type: Array,
-        default: []
-    },
     status: {
         type: Array,
         default: []

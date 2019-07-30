@@ -21,6 +21,7 @@ export const typeDefs = gql`
     }
     type Task {
         _id: ID!
+        taskIndex: Int!
         projectId: String!
         sprint: String!
         status: String!
@@ -33,6 +34,17 @@ export const typeDefs = gql`
         dateCreated: String!
         dateUpdated: String!
         timeConsuming: String!
+    }
+    type TasksData {
+        tasks: [Task!]!
+        taskCount: Int!
+    }
+    type Comment {
+        _id: ID!
+        text: String!
+        taskId: String!
+        dateCreated: String!
+        creatorId: String!
     }
     type Sprint {
         _id: ID!
@@ -50,19 +62,34 @@ export const typeDefs = gql`
         dateCreated: String!
         admins: [String!]!
         users: [String!]!
-        tasks: [Task!]!
         status: [String!]!
-    }
-    type TasksData {
-        tasks: [Task!]!
-        taskCount: Int!
     }
     type ProjectsData {
         projects: [Project!]!
+        tasks: [Task!]!
         totalProjects: Int!
+        totalTasks: Int!
+    }
+    type Message {
+        userId: String!
+        creator: String!
+        message: String!
+        date: String!
+        unreaded: Boolean!
+    }
+    type MessagesData {
+        messages: [Message!]!
+        totalMesages: Int!
+        unreadedMessages: Int!
+    }
+    type Subscription {
+        messages(userId: String): Project
+    }
+    input StatusInput {
+        name: [String]!
     }
     type Query {
-        getAllUserTasks(
+        getAllPerformerTasks(
             userId: String!
             first: Int
             skip: Int
@@ -73,9 +100,7 @@ export const typeDefs = gql`
         getTask(_id: ID!): Task!
         getProject(_id: ID!): Project!
         getAllUserProjects(userId: ID!): ProjectsData!
-    }
-    input StatusInput {
-        name: [String]!
+        getAllUserMessages(userId: ID!): MessagesData!
     }
     type Mutation {
         createProject(

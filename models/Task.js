@@ -7,6 +7,9 @@ const taskSchema = new mongoose.Schema({
         minlength: 3,
         maxlength: 50
     },
+    taskIndex: {
+        type: Number
+    },
     user: {
         type: String
     },
