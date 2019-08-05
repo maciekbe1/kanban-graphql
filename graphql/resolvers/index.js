@@ -9,13 +9,10 @@ import jwt from "jsonwebtoken";
 import { PubSub } from "apollo-server";
 const pubsub = new PubSub();
 
-const USER_MESSAGES = "USER_MESSAGES";
 export const resolvers = {
 	Subscription: {
-		messages: {
-			subscribe: async () => {
-				return await pubsub.asyncIterator([USER_MESSAGES]);
-			}
+		count: {
+			subscribe: () => pubsub.asyncIterator("count")
 		}
 	},
 	Query: {
@@ -90,7 +87,7 @@ export const resolvers = {
 			};
 		},
 		getAllUserMessages: async (_, { userId, readed, first, skip }) => {
-			const totalMessages = await await Message.find({
+			const totalMessages = await Message.find({
 				userId: userId
 			}).countDocuments();
 			const messages = await Message.find({
@@ -110,7 +107,13 @@ export const resolvers = {
 				.sort({ date: -1 })
 				.skip(skip)
 				.limit(first);
-
+			const count = Message.find({
+				userId: userId,
+				readed: false
+			}).countDocuments();
+			pubsub.publish("count", {
+				count
+			});
 			if (readed) {
 				return await {
 					messages: unreadedMessages,
@@ -129,6 +132,13 @@ export const resolvers = {
 		changeMessageStatus: async (_, { messageId }) => {
 			const message = await Message.findById(messageId);
 			await message.updateOne({ readed: true });
+			const count = Message.find({
+				userId: message.userId,
+				readed: false
+			}).countDocuments();
+			pubsub.publish("count", {
+				count
+			});
 			return message;
 		},
 		createTask: async (

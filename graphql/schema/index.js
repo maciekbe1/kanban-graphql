@@ -85,7 +85,7 @@ export const typeDefs = gql`
 		unreadedMessages: Int!
 	}
 	type Subscription {
-		messages(userId: String): Project
+		count: Int!
 	}
 	input StatusInput {
 		name: [String]!
