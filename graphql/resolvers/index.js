@@ -11,22 +11,31 @@ const pubsub = new PubSub();
 
 export const resolvers = {
 	Subscription: {
-		count: {
-			subscribe: () => pubsub.asyncIterator("count")
+		messageCounter: {
+			subscribe: async (_, { userID }) => {
+				getUnreadedMessagesCount(userID);
+				return await pubsub.asyncIterator("messageCounter");
+			}
+		},
+		messageSub: {
+			subscribe: async (_, { userID, first }) => {
+				getMessagesSubs(userID, first);
+				return await pubsub.asyncIterator("messageSub");
+			}
 		}
 	},
 	Query: {
-		getAllPerformerTasks: async (obj, { userId, search }) => {
-			// const taskArray = await User.findById(userId).distinct("tasks");
+		getAllPerformerTasks: async (obj, { userID, search }) => {
+			// const taskArray = await User.findById(userID).distinct("tasks");
 			const tasks = await Task.find({
-				performerId: userId
+				performerID: userID
 			});
 			if (!tasks.length) {
 				throw new Error("No tasks exist");
 			}
 			if (search) {
 				const filtered = Task.find({
-					performerId: userId,
+					performerID: userID,
 					name: { $regex: search, $options: "i" }
 				});
 
@@ -35,9 +44,6 @@ export const resolvers = {
 					taskCount: tasks.length
 				};
 			}
-			// const tasks = taskArray.map(task => {
-			//     return Task.findById(task);
-			// });
 
 			return await {
 				tasks: tasks,
@@ -48,37 +54,19 @@ export const resolvers = {
 		getUser: async (_, { _id }) => await User.findById(_id),
 		getTask: async (_, { _id }) => await Task.findById(_id),
 		getProject: async (_, { _id }) => await Project.findById(_id),
-		getAllUserProjects: async (_, { userId }) => {
-			// const projectsArray = await User.findById(userId).distinct(
-			//     "projects"
-			// );
-
-			// if (!projectsArray.length) {
-			//     throw new Error("No project exist");
-			// }
-			// const projects = projectsArray.map(project => {
-			//     return Project.findById(project);
-			// });
-
-			const projects = await Project.find({ users: userId });
+		getAllUserProjects: async (_, { userID }) => {
+			const projectExist = await Project.find({
+				users: userID
+			}).countDocuments();
+			const projects = await Project.find({ users: userID });
 			const tasks = await Task.find({
-				projectId: projects.map(project => {
+				projectID: projects.map(project => {
 					return project._id;
 				})
 			});
-			// const tasks = projects.map(project => {
-			//     return Task.find({ projectId: project._id });
-			// });
-			// const filter = projects.map(project => {
-			//     const result = project.users.map(user => {
-			//         return user === userId;
-			//     });
-			//     return result ? project : null;
-			// });
-			if (!projects.length) {
+			if (!projectExist) {
 				throw new Error("No project exist");
 			}
-
 			return {
 				totalProjects: projects.length,
 				totalTasks: tasks.length,
@@ -86,112 +74,107 @@ export const resolvers = {
 				tasks: tasks
 			};
 		},
-		getAllUserMessages: async (_, { userId, readed, first, skip }) => {
+		getAllUserMessages: async (_, { userID, readed, first, skip }) => {
 			const totalMessages = await Message.find({
-				userId: userId
+				userID: userID
 			}).countDocuments();
+			if (!totalMessages) {
+				throw new Error("no messages");
+			}
 			const messages = await Message.find({
-				userId: userId
+				userID: userID
 			})
 				.sort({ date: -1 })
 				.skip(skip)
 				.limit(first);
 			const totalUnreadedMessage = await Message.find({
-				userId: userId,
+				userID: userID,
 				readed: false
 			}).countDocuments();
 			const unreadedMessages = await Message.find({
-				userId: userId,
+				userID: userID,
 				readed: false
 			})
 				.sort({ date: -1 })
 				.skip(skip)
 				.limit(first);
-			const count = Message.find({
-				userId: userId,
-				readed: false
-			}).countDocuments();
-			pubsub.publish("count", {
-				count
-			});
+			// console.log(first);
 			if (readed) {
 				return await {
 					messages: unreadedMessages,
 					totalMessages: totalMessages,
-					unreadedMessages: totalUnreadedMessage
+					totalUnreadedMessage: totalUnreadedMessage
 				};
 			}
 			return await {
 				messages: messages,
 				totalMessages: totalMessages,
-				unreadedMessages: totalUnreadedMessage
+				totalUnreadedMessage: totalUnreadedMessage
 			};
 		}
 	},
 	Mutation: {
-		changeMessageStatus: async (_, { messageId }) => {
-			const message = await Message.findById(messageId);
+		changeMessageStatus: async (_, { messageID }) => {
+			const message = await Message.findById(messageID);
 			await message.updateOne({ readed: true });
-			const count = Message.find({
-				userId: message.userId,
-				readed: false
-			}).countDocuments();
-			pubsub.publish("count", {
-				count
-			});
+			// const messageOwner = Message.find({
+			// 	userID: message.userID
+			// })
+			// getMessagesSubs(message.userID);
+			getUnreadedMessagesCount(message.userID);
 			return message;
 		},
 		createTask: async (
 			_,
 			{
-				projectId,
+				projectID,
 				name,
 				description,
-				performerId,
-				creatorId,
+				performerID,
+				creatorID,
 				currentSprint,
-				currentStatus,
-				timeConsuming
+				currentStatus
 			}
 		) => {
 			const tasks = await Task.find({
-				projectId: projectId
+				projectID: projectID
 			});
 			const taskIndex = tasks.length;
 			const task = new Task({
-				projectId,
+				projectID,
 				taskIndex,
 				name,
 				description,
-				performerId,
-				creatorId,
+				performerID,
+				creatorID,
 				currentSprint,
-				currentStatus,
-				timeConsuming
+				currentStatus
 			});
 			const checkUserInProject = await User.find({
-				_id: performerId,
-				users: performerId
+				_id: performerID,
+				users: performerID
 			});
 			// console.log(checkUserInProject);
 
 			if (checkUserInProject.length) {
 				throw new Error("User does not exist in this project!");
 			}
-			// const user = await User.findById(performerId);
-			// const project = await Project.findById(projectId);
+			// const user = await User.findById(performerID);
+			// const project = await Project.findById(projectID);
 			await task.save();
 			// await project.updateOne({})({ $push: { tasks: task._id } });
 			// await user.updateOne({ $push: { tasks: task._id } });
 
 			//dodac oddelegowanie do taska
 			const message = new Message({
-				userId: performerId,
-				creator: creatorId,
+				userID: performerID,
+				creator: creatorID,
 				type: "Task",
-				message: `You have new an issue.`
+				message: `You have new an issue. Date ${task.dateCreated}`
 			});
 			await message.save();
+			getUnreadedMessagesCount(performerID);
+			getMessagesSubs(performerID);
 			return task;
 		},
 		createUser: async (_, { login, password, email, f_name, l_name }) => {
@@ -209,38 +192,43 @@ export const resolvers = {
 					l_name: l_name
 				});
 				await user.save();
+				const message = new Message({
+					userID: user._id,
+					type: "User",
+					message: `Welcome!`
+				});
+				await message.save();
 				return user;
 			} catch (err) {
 				throw err;
 			}
 		},
-		createProject: async (_, { userId, name, description, status }) => {
+		createProject: async (_, { userID, name, description }) => {
 			const project = new Project({
 				name: name,
 				description: description,
-				admins: userId,
-				users: userId,
-				status: status.name
+				admins: userID,
+				users: userID
 			});
-			// const user = User.findById(userId);
+			// const user = User.findById(userID);
 			await project.save();
 			// await user.updateOne({ $push: { projects: project._id } });
 			const message = new Message({
-				userId: userId,
+				userID: userID,
 				type: "Project",
 				message: `Project ${name} was successfuly created`
 			});
 			await message.save();
 			return project;
 		},
-		inviteMember: async (_, { projectId, ownerId, guestId }) => {
+		inviteMember: async (_, { projectID, ownerID, guestID }) => {
 			const checkUserPermission = await Project.find({
-				_id: projectId,
-				admins: ownerId
+				_id: projectID,
+				admins: ownerID
 			});
 			const checkUserExist = await Project.find({
-				_id: projectId,
-				users: guestId
+				_id: projectID,
+				users: guestID
 			});
 			if (!checkUserPermission.length) {
 				throw new Error("You do not have access to add user");
@@ -250,18 +238,18 @@ export const resolvers = {
 				throw new Error("User is arleady exist in this project");
 			}
 
-			await Project.find({ _id: projectId }).updateOne({
-				$push: { users: guestId }
+			await Project.find({ _id: projectID }).updateOne({
+				$push: { users: guestID }
 			});
 
-			const objectId = await mongoose.Types.ObjectId(projectId);
+			const objectId = await mongoose.Types.ObjectId(projectID);
 			const project = await Project.findById(objectId);
-			// const user = await User.findById(guestId);
+			// const user = await User.findById(guestID);
 			// console.log(user.projects);
 			// await user.updateOne({ $push: { projects: project._id } });
 			// console.log(update);
 			const message = new Message({
-				userId: userId,
+				userID: userID,
 				type: "Invite",
 				message: `You have been invited to project`
 			});
@@ -277,11 +265,45 @@ export const resolvers = {
 			if (!isEqual) {
 				throw new Error("Password is incorrect!");
 			}
-			return { token: createToken(user, process.env.SECRET, "1h") };
+			const token = createToken(user, process.env.SECRET);
+			return { token: token };
 		}
 	}
 };
-const createToken = (user, secret, expiresIn) => {
+const createToken = (user, secret) => {
 	const { login, id } = user;
-	return jwt.sign({ login, id }, secret, { expiresIn });
+	return jwt.sign({ login, id }, secret);
+};
+const getMessagesSubs = async (userID, first) => {
+	const messages = await Message.find({
+		userID: userID
+	})
+		.sort({ date: -1 })
+		.limit(first);
+	const totalMessages = await Message.find({
+		userID: userID
+	}).countDocuments();
+	const totalUnreadedMessage = await Message.find({
+		userID: userID,
+		readed: false
+	}).countDocuments();
+	const messageSub = {
+		messages: messages,
+		totalMessages: totalMessages,
+		totalUnreadedMessage: totalUnreadedMessage
+	};
+	pubsub.publish("messageSub", {
+		messageSub
+	});
+	return messageSub;
+};
+const getUnreadedMessagesCount = async userID => {
+	const unreadedMessages = await Message.find({
+		userID: userID,
+		readed: false
+	}).countDocuments();
+	pubsub.publish("messageCounter", {
+		messageCounter: unreadedMessages
+	});
+	return unreadedMessages;
 };

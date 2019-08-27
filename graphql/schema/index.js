@@ -16,8 +16,6 @@ export const typeDefs = gql`
 		password: String!
 		f_name: String!
 		l_name: String!
-		projects: [String!]!
-		tasks: [String!]!
 	}
 	type Task {
 		_id: ID!
@@ -27,8 +25,8 @@ export const typeDefs = gql`
 		status: String!
 		name: String!
 		description: String!
-		performerId: String!
-		creatorId: String!
+		performerID: String!
+		creatorID: String!
 		currentSprint: String!
 		currentStatus: String!
 		dateCreated: String!
@@ -42,7 +40,7 @@ export const typeDefs = gql`
 	type Comment {
 		_id: ID!
 		text: String!
-		taskId: String!
+		taskID: String!
 		dateCreated: String!
 		creatorId: String!
 	}
@@ -50,6 +48,7 @@ export const typeDefs = gql`
 		_id: ID!
 		name: String!
 		active: Boolean!
+		projectID: String!
 	}
 	type Status {
 		_id: ID!
@@ -60,9 +59,9 @@ export const typeDefs = gql`
 		name: String!
 		description: String!
 		dateCreated: String!
+		active: Boolean!
 		admins: [String!]!
 		users: [String!]!
-		status: [String!]!
 	}
 	type ProjectsData {
 		projects: [Project!]!
@@ -72,7 +71,7 @@ export const typeDefs = gql`
 	}
 	type Message {
 		_id: ID!
-		userId: String!
+		userID: String!
 		creator: String!
 		message: String!
 		date: String!
@@ -82,17 +81,15 @@ export const typeDefs = gql`
 	type MessagesData {
 		messages: [Message!]!
 		totalMessages: Int!
-		unreadedMessages: Int!
+		totalUnreadedMessage: Int!
 	}
 	type Subscription {
-		count: Int!
-	}
-	input StatusInput {
-		name: [String]!
+		messageCounter(userID: ID!): Int!
+		messageSub(userID: ID!, first: Int): MessagesData!
 	}
 	type Query {
 		getAllPerformerTasks(
-			userId: String!
+			userID: String!
 			first: Int
 			skip: Int
 			search: String
@@ -101,9 +98,9 @@ export const typeDefs = gql`
 		getUser(_id: ID!): User!
 		getTask(_id: ID!): Task!
 		getProject(_id: ID!): Project!
-		getAllUserProjects(userId: ID!): ProjectsData!
+		getAllUserProjects(userID: ID!): ProjectsData!
 		getAllUserMessages(
-			userId: ID!
+			userID: ID!
 			readed: Boolean
 			first: Int
 			skip: Int
@@ -113,25 +110,23 @@ export const typeDefs = gql`
 		createProject(
 			name: String!
 			description: String!
-			userId: String!
-			status: StatusInput
+			userID: String!
 		): Project!
-		changeMessageStatus(messageId: ID!): Message!
+		changeMessageStatus(messageID: ID!): Message!
 		inviteMember(
-			projectId: String!
-			ownerId: String!
-			guestId: String!
+			projectID: String!
+			ownerID: String!
+			guestID: String!
 		): Project!
 
 		createTask(
-			projectId: String!
+			projectID: String!
 			name: String!
 			description: String!
-			performerId: String!
-			creatorId: String!
+			performerID: String!
+			creatorID: String!
 			currentSprint: String!
 			currentStatus: String!
-			timeConsuming: String!
 		): Task!
 
 		createUser(
@@ -143,7 +138,7 @@ export const typeDefs = gql`
 		): User!
 
 		signIn(login: String!, password: String!): AuthData!
-		createStatus(projectId: String!): [String!]!
+		createStatus(projectID: String!): [String!]!
 		createSprint(name: String!): Sprint!
 	}
 `;

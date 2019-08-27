@@ -1,38 +1,30 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-    login: {
-        type: String,
-        minlength: 3,
-        maxlength: 30,
-        required: true
-    },
-    email: {
-        type: String,
-        required: true
-    },
-    // projects: {
-    //     type: Array,
-    //     default: []
-    // },
-    // tasks: {
-    //     type: Array,
-    //     default: []
-    // },
-    password: {
-        type: String,
-        required: true
-    },
-    f_name: {
-        type: String,
-        // required: true
-        default: ""
-    },
-    l_name: {
-        type: String,
-        default: ""
-        // required: true
-    }
+	login: {
+		type: String,
+		minlength: 3,
+		maxlength: 30,
+		required: true
+	},
+	email: {
+		type: String,
+		required: true
+	},
+	password: {
+		type: String,
+		required: true
+	},
+	f_name: {
+		type: String,
+		// required: true
+		default: ""
+	},
+	l_name: {
+		type: String,
+		default: ""
+		// required: true
+	}
 });
 
 export const User = mongoose.model("User", userSchema);

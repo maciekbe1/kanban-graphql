@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-	userId: {
+	userID: {
 		type: String
 	},
 	creator: {
